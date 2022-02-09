@@ -14,7 +14,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 
 
-case class ApiController(settings: WDFSettings, timeseries: TimeSeries, router: ActorRef) {
+case class ApiController(settings: WDFSettings, timeseries: TimeSeries, router: ActorRef, symbols: Map[String,String]) {
   private implicit val timeout: Timeout = 5.seconds
 
   val ValidTimeFrames = List(5, 15, 30, 60, 240, 1440)
@@ -38,7 +38,7 @@ case class ApiController(settings: WDFSettings, timeseries: TimeSeries, router: 
   val ErrorInvalidAddress = Json.obj("status" -> "error",
     "message" -> "Invalid address")
 
-  def getAssetId(a: String): String = if (a.toUpperCase=="WAVES") "WAVES" else if (a.length >= 2 && a.length <= 20) settings.symbols.getOrElse(a.toUpperCase, "") else a
+  def getAssetId(a: String): String = if (a.toUpperCase=="DCC") "DCC" else if (a.length >= 2 && a.length <= 20) symbols.getOrElse(a.toUpperCase, "") else a
 
   def apiStatus: Future[JsObject] = {
       for {
@@ -58,8 +58,12 @@ case class ApiController(settings: WDFSettings, timeseries: TimeSeries, router: 
 
   def apiPairsList: List[JsObject] = timeseries.markets
 
+  def apiPairsListVerified: List[JsObject] = timeseries.verifiedMarkets
+
+  def apiBlockHeight: Int = timeseries.lastSyncedBlock
+
   def apiSymbolsList: List[JsObject] =
-    settings.symbols.toSeq.sorted.map(s => Json.obj("symbol" -> s._1,
+    symbols.toSeq.sorted.map(s => Json.obj("symbol" -> s._1,
       "assetID" -> s._2)).toList
 
   def apiGetTicker(amountAsset: String, priceAsset: String): Either[JsObject, JsObject] =

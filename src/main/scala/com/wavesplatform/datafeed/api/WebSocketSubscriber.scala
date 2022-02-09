@@ -68,6 +68,8 @@ class WebSocketSubscriber(apiController: ApiController) extends ActorSubscriber 
                   ops(1).toLowerCase match {
                     case "markets" => publisherActor ! Json.obj("op" -> arg, "msg" -> apiController.apiPairsList)
 
+                    case "verified" => publisherActor ! Json.obj("op" -> arg, "msg" -> apiController.apiPairsListVerified)
+
                     case "trades" => publisherActor !
                       (if (ops.size==5) apiController.apiGetTradesLimit(ops(2), ops(3), toInt(ops(4)).getOrElse(0)) match {
                         case Left(l) => l

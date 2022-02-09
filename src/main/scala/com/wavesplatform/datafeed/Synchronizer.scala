@@ -10,18 +10,18 @@ import scala.collection.mutable.Queue
 
 class Synchronizer(nodeApi: NodeApiWrapper, uetx: UnconfirmedETX, timeseries: TimeSeries, router: ActorRef, matchers: List[String]) extends Actor with Logging {
 
-  val FirstMainnetBlock = 435196
+  val FirstMainnetBlock = 0
   val FirstTestnetBlock = 171000
 
   val addresses = scala.collection.mutable.SortedSet[String]()
 
   val mainnet: Boolean = {
     val req = nodeApi.get("/blocks/last")
-    if (req != JsNull && (req \ "generator").as[String].take(2)=="3P") true
+    if (req != JsNull && (req \ "generator").as[String].take(2)=="3J") true
     else false
   }
 
-  WavesAddress.chainId = if (mainnet) 'W'.toByte else 'T'.toByte
+  WavesAddress.chainId = if (mainnet) 'L'.toByte else 'l'.toByte
 
   private def rotate(nodes: List[String]): List[String] = nodes.drop(1) ++ nodes.take(1)
 
@@ -54,7 +54,7 @@ class Synchronizer(nodeApi: NodeApiWrapper, uetx: UnconfirmedETX, timeseries: Ti
       }
       if (tx.keys.contains("assetId")) router ! WebSocketRouter.TMessage (tx, "asset/" + ((tx \ "assetId").validate[String] match {
         case s: JsSuccess[String] => s.get
-        case e: JsError => "WAVES"
+        case e: JsError => "DCC"
       }) + "/" + txType)
     }
 
@@ -65,7 +65,7 @@ class Synchronizer(nodeApi: NodeApiWrapper, uetx: UnconfirmedETX, timeseries: Ti
       try {
         val reqAddrBal = nodeApi.get("/addresses/balance/" + a)
         val wavesBalance = if (reqAddrBal != JsNull) (reqAddrBal \ "balance").as[Long] else 0
-        var balances = Json.obj("WAVES" -> wavesBalance)
+        var balances = Json.obj("DCC" -> wavesBalance)
         val reqAssetBal = nodeApi.get("/assets/balance/" + a)
         if (reqAssetBal != JsNull) {
           (reqAssetBal \ "balances").as[List[JsObject]].sortBy(a => (a \ "assetId").as[String]).foreach(asset => {

@@ -21,7 +21,7 @@ case class WDFSettings(enable: Boolean,
                        websocketEnable: Boolean,
                        websocketAddress: String,
                        websocketPort: Int,
-                       symbols: Map[String, String]
+                       oracle: String
                       )
 
 object WDFSettings {
@@ -40,7 +40,7 @@ object WDFSettings {
     val websocketEnable = config.as[Boolean](s"$configPath.websocket-enable")
     val websocketAddress = config.as[String](s"$configPath.websocket-address")
     val websocketPort = config.as[Int](s"$configPath.websocket-port")
-    val symbols: Map[String, String] = config.getConfigList(s"$configPath.symbols").asScala.map { p: Config => (p.as[String]("symbol"), p.as[String]("asset")) }.toMap
+    val oracle = config.as[String](s"$configPath.oracle")
 
     WDFSettings(enable,
       nodes,
@@ -52,6 +52,6 @@ object WDFSettings {
       websocketEnable,
       websocketAddress,
       websocketPort,
-      symbols)
+      oracle)
   }
 }

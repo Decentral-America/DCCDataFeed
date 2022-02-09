@@ -6,7 +6,7 @@ import scorex.crypto.encode.Base58
 
 object WavesAddress {
 
-  var chainId: Byte = 'T'.toByte
+  var chainId: Byte = 'l'.toByte
 
   private def hashChain(noncedSecret: Array[Byte]): Array[Byte] = Keccak256.hash(Blake2b256.hash(noncedSecret))
 

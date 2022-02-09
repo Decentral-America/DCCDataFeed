@@ -8,7 +8,7 @@ import play.api.libs.json._
 import scala.collection.concurrent.TrieMap
 import scala.util.{Failure, Success, Try}
 
-class TimeSeries(settings: WDFSettings, nodeApi: NodeApiWrapper, uetx: UnconfirmedETX) {
+class TimeSeries(settings: WDFSettings, nodeApi: NodeApiWrapper, uetx: UnconfirmedETX,symbols: Map[String,String]) {
 
   private val pairs = TrieMap[String, AssetPair]()
 
@@ -16,7 +16,7 @@ class TimeSeries(settings: WDFSettings, nodeApi: NodeApiWrapper, uetx: Unconfirm
 
   DFDB.getPairMaps
     .foreach(p => {
-      val pair = new AssetPair(settings, nodeApi, p._1, p._2, DFDB, uetx)
+      val pair = new AssetPair(settings, nodeApi, p._1, p._2, DFDB, uetx, symbols)
       pairs.update(p._1 + "-" + p._2, pair)
       pair.loadPair
     })
@@ -28,7 +28,7 @@ class TimeSeries(settings: WDFSettings, nodeApi: NodeApiWrapper, uetx: Unconfirm
     pairs.get(pairName) match {
       case Some(pair) => pair.addTrade(tx)
       case None => {
-        val pair = new AssetPair(settings, nodeApi, tx.amountAsset, tx.priceAsset, DFDB, uetx)
+        val pair = new AssetPair(settings, nodeApi, tx.amountAsset, tx.priceAsset, DFDB, uetx, symbols)
         pairs.update(pairName, pair)
         pair.addTrade(tx)
       }
@@ -39,6 +39,9 @@ class TimeSeries(settings: WDFSettings, nodeApi: NodeApiWrapper, uetx: Unconfirm
 
   def markets: List[JsObject] =
     (pairs.toList.filter(_._2.symbol.nonEmpty).sortBy(_._2.symbol) ++ pairs.toList.filter(_._2.symbol.isEmpty)).map(p => p._2.getMarket)
+
+  def verifiedMarkets: List[JsObject] =
+    pairs.toList.filter(_._2.symbol.nonEmpty).sortBy(_._2.symbol).map(p => p._2.getMarket)
 
   def tickers: List[JsObject] =
     (pairs.toList.filter(_._2.symbol.nonEmpty).sortBy(_._2.symbol) ++ pairs.toList.filter(_._2.symbol.isEmpty)).map(p => p._2.getTicker)

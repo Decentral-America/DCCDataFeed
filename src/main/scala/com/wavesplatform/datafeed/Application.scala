@@ -1,26 +1,26 @@
 package com.wavesplatform.datafeed
 
-import java.io.File
-
+import akka.actor.{ActorRef, ActorSystem, _}
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.ws._
+import akka.http.scaladsl.server.Directives._
+import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.{Flow, _}
 import com.typesafe.config.ConfigFactory
+import com.wavesplatform.datafeed.api.WebSocketSubscriber.RegisterSource
+import com.wavesplatform.datafeed.api.{MetricsController, _}
 import com.wavesplatform.datafeed.model._
-import com.wavesplatform.datafeed.api._
 import com.wavesplatform.datafeed.settings._
 import com.wavesplatform.datafeed.utils._
-import akka.actor._
-import akka.actor.{ActorRef, ActorSystem}
-import akka.stream.scaladsl._
-import akka.stream.scaladsl.Flow
-import akka.http.scaladsl.model.ws._
+import play.api.libs.json.{JsNull, JsObject}
+import sun.security.ec.point.ProjectivePoint.Mutable
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import java.io.File
+import scala.collection.mutable
 import scala.concurrent.Await
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.reflect.runtime.universe._
-import akka.stream.ActorMaterializer
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.server.Directives._
-import com.wavesplatform.datafeed.api.WebSocketSubscriber.RegisterSource
 
 
 class Application(as: ActorSystem, wdfSettings: WDFSettings) extends {
@@ -51,7 +51,7 @@ object Application extends Logging {
       }
     }
 
-    val settings = WDFSettings.fromConfig(config)
+    var settings = WDFSettings.fromConfig(config)
 
     if (!settings.enable) {
       log.info("DataFeed not enabled. Exiting..")
@@ -64,15 +64,37 @@ object Application extends Logging {
 
     val nodeApi = NodeApiWrapper(settings)
 
+    var symbolsNew = Map[String, String]()
+    val req = nodeApi.get("/addresses/data/"+settings.oracle+"?matches=ticker_%3C.*")
+    if (req != JsNull) {
+      req.as[List[JsObject]].foreach(asset => {
+
+        val asset_id: String = (asset\ "key").as[String].replace("ticker_<","").replace(">","")
+        val status = nodeApi.get("/addresses/data/"+settings.oracle+"?matches=status_<" + asset_id + ">")
+        if (status != JsNull){
+          val res = (status(0)\ "value").as[Int]
+          if (res == 2){
+            val symbol: String = (asset\ "value").as[String]
+            symbolsNew += symbol -> asset_id
+            log.info(symbol)
+            log.info(asset_id)
+          }
+
+        }
+      }
+      )
+    }
+
+
     val uetx = new UnconfirmedETX
     val router: ActorRef = system.actorOf(Props[WebSocketRouter], "router")
 
-    val timeseries = new TimeSeries(settings, nodeApi, uetx)
+    val timeseries = new TimeSeries(settings, nodeApi, uetx, symbolsNew)
 
     val synchronizer = system.actorOf(Props(classOf[Synchronizer], nodeApi, uetx, timeseries, router, settings.matchers), name = "nodeSync")
 
 
-    lazy val apiController = ApiController(settings, timeseries, router)
+    lazy val apiController = ApiController(settings, timeseries, router, symbolsNew)
 
     lazy val datafeedApiRoutes = Seq(
       RestApiRoute(settings, apiController)
@@ -82,7 +104,7 @@ object Application extends Logging {
       typeOf[RestApiRoute]
     )
 
-    val combinedRoute = CompositeHttpService(system, datafeedApiTypes, datafeedApiRoutes, settings).compositeRoute
+    val combinedRoute = MetricsController.routes ~ CompositeHttpService(system, datafeedApiTypes, datafeedApiRoutes, settings).compositeRoute
     val datafeedServerBinding = Await.result(Http().bindAndHandle(combinedRoute, settings.restAddress, settings.restPort), 5.seconds)
 
     log.info(s"Starting REST API on: ${settings.restAddress}:${settings.restPort} ...")

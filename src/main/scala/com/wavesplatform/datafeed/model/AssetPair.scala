@@ -14,7 +14,7 @@ import java.text.SimpleDateFormat
 
 import com.wavesplatform.datafeed.settings.WDFSettings
 
-case class AssetPair(settings: WDFSettings, nodeApi: NodeApiWrapper, amountAsset: String, priceAsset: String, DFDB: MVStoreDataFeedStorage, uetx: UnconfirmedETX) extends Logging {
+case class AssetPair(settings: WDFSettings, nodeApi: NodeApiWrapper, amountAsset: String, priceAsset: String, DFDB: MVStoreDataFeedStorage, uetx: UnconfirmedETX, symbols: Map[String,String]) extends Logging {
 
   val MaxTrades = 1000
   val MaxCandles = 1000
@@ -31,10 +31,10 @@ case class AssetPair(settings: WDFSettings, nodeApi: NodeApiWrapper, amountAsset
   val amountAssetIssueTx = nodeApi.get("/transactions/info/" + amountAsset)
   val priceAssetIssueTx = nodeApi.get("/transactions/info/" + priceAsset)
 
-  val amountAssetDecimals = if (amountAsset == "WAVES") 8 else (amountAssetIssueTx \ "decimals").as[Int]
-  val amountAssetName = if (amountAsset == "WAVES") "WAVES" else (amountAssetIssueTx \ "name").as[String]
-  val priceAssetDecimals = if (priceAsset == "WAVES") 8 else (priceAssetIssueTx \ "decimals").as[Int]
-  val priceAssetName = if (priceAsset == "WAVES") "WAVES" else (priceAssetIssueTx \ "name").as[String]
+  val amountAssetDecimals = if (amountAsset == "DCC") 8 else (amountAssetIssueTx \ "decimals").as[Int]
+  val amountAssetName = if (amountAsset == "DCC") "DCC" else (amountAssetIssueTx \ "name").as[String]
+  val priceAssetDecimals = if (priceAsset == "DCC") 8 else (priceAssetIssueTx \ "decimals").as[Int]
+  val priceAssetName = if (priceAsset == "DCC") "DCC" else (priceAssetIssueTx \ "name").as[String]
 
   val amountScale = Math.pow(10, amountAssetDecimals).toLong
   val priceScale = Math.pow(10, priceAssetDecimals).toLong
@@ -49,7 +49,7 @@ case class AssetPair(settings: WDFSettings, nodeApi: NodeApiWrapper, amountAsset
 
 
   def getAssetSupply(assetId: String): (Long, Long, Long) =
-    if (assetId == "WAVES") (1e8.toLong, 1e8.toLong, 1e8.toLong) else {
+    if (assetId == "DCC") (1e8.toLong, 1e8.toLong, 1e8.toLong) else {
       val issueTx = nodeApi.get("/transactions/info/" + assetId)
       val assets = (nodeApi.get("/assets/balance/" + (issueTx \ "sender").as[String]) \ "balances").as[List[JsObject]]
       var supply = 0L
@@ -73,12 +73,12 @@ case class AssetPair(settings: WDFSettings, nodeApi: NodeApiWrapper, amountAsset
   val priceAssetMaxSupply = if (pMaxSupply == -1L) "infinite" else amountFormatter.format(pMaxSupply)
   val priceAssetCirculatingSupply = amountFormatter.format(pCSupply)
 
-  val amountSymbol = keyForValue(settings.symbols, amountAsset) match {
+  val amountSymbol = keyForValue(symbols, amountAsset) match {
     case Some(s) => s._1
     case None => ""
   }
 
-  val priceSymbol = keyForValue(settings.symbols, priceAsset) match {
+  val priceSymbol = keyForValue(symbols, priceAsset) match {
     case Some(s) => s._1
     case None => ""
   }

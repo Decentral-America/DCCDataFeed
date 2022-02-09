@@ -18,7 +18,7 @@ class NodeApiWrapper(settings: WDFSettings) extends Logging {
   def get(request: String): JsValue =
     if (retryCounter == 0 || (System.currentTimeMillis - retryCounter) > RetryDelay)
       Try {
-        Json.parse(Http("http://" + settings.nodes.head + request).options(HttpOptions.connTimeout(MaxConnTimeout),
+        Json.parse(Http(settings.nodes.head + request).options(HttpOptions.connTimeout(MaxConnTimeout),
           HttpOptions.readTimeout(MaxReadTimeout)).asString.body)
       } match {
         case Success(s) =>
